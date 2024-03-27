@@ -8,6 +8,7 @@ use embedded_hal::digital::{InputPin, OutputPin};
 pub(crate) struct KeyState {
     pub(crate) pressed: bool,
     pub(crate) changed: bool,
+    pub(crate) held: bool,
     hold_start: Option<Instant>,
 }
 
@@ -22,6 +23,7 @@ impl KeyState {
         KeyState {
             pressed: false,
             changed: false,
+            held: false,
             hold_start: None,
         }
     }
@@ -99,6 +101,13 @@ impl<
                     DebounceState::Debounced => {
                         self.key_states[out_idx][in_idx].toggle_pressed();
                         self.key_states[out_idx][in_idx].changed = true;
+                        self.key_states[out_idx][in_idx].held = false;
+                    }
+                    // When a key is held down, flag `held` as true
+                    // `held = true` triggers reinsertion of keycode
+                    DebounceState::HeldHigh => {
+                        self.key_states[out_idx][in_idx].held = true;
+                        self.key_states[out_idx][in_idx].changed = false;
                     }
                     _ => self.key_states[out_idx][in_idx].changed = false,
                 }

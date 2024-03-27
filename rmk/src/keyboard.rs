@@ -248,6 +248,23 @@ impl<
                 if ks.changed {
                     self.process_key_change(row_idx, col_idx).await;
                 }
+                // if key is held, re-insert keycode
+                if ks.held {
+                    let action = self
+                        .keymap
+                        .borrow_mut()
+                        .get_action_with_layer_cache(row_idx, col_idx, ks);
+                    match action {
+                        KeyAction::Single(Action::Key(key)) => {
+                            if key.is_modifier() {
+                                self.register_modifier(key.as_modifier_bit());
+                            } else if key.is_basic() {
+                                self.register_keycode(key);
+                            }
+                        }
+                        _ => (),
+                    }
+                }
             }
         }
 
@@ -489,8 +506,10 @@ impl<
 
     /// Register a key to be sent in hid report.
     fn register_keycode(&mut self, key: KeyCode) {
-        if let Some(index) = self.report.keycodes.iter().position(|&k| k == 0) {
-            self.report.keycodes[index] = key as u8;
+        if !self.report.keycodes.iter().any(|&k| k == key as u8) {
+            if let Some(index) = self.report.keycodes.iter().position(|&k| k == 0) {
+                self.report.keycodes[index] = key as u8;
+            }
         }
     }
 
